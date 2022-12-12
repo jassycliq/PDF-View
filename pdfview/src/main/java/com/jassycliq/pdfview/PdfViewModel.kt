@@ -26,7 +26,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.lang.ref.SoftReference
 
-class PdfViewModel(
+internal class PdfViewModel(
     private val pdf: File?,
     private val isLowRam: Boolean = false,
 ) : ViewModel() {
@@ -45,18 +45,17 @@ class PdfViewModel(
         super.onCleared()
     }
 
-    private fun createPDF() {
-        pdf?.let {
-            finalPdf = when (SDK_INT < O || isLowRam) {
-                true -> pdf.createImageList()
-                    .renderCombinedPDFLowMem()
-                    .decodeSampledBitmapFromFile()
-                false -> pdf.createImageList()
-                    .renderCombinedPDF()
-            }.apply { prepareToDraw() }
-            _uiState.update { currentState ->
-                currentState.copy(pdf = finalPdf)
-            }
+    private fun createPDF() = pdf?.let {
+        finalPdf = when (SDK_INT < O || isLowRam) {
+            true -> pdf.createImageList()
+                .renderCombinedPDFLowMem()
+                .decodeSampledBitmapFromFile()
+            false -> pdf.createImageList()
+                .renderCombinedPDF()
+        }.apply { prepareToDraw() }
+
+        _uiState.update { currentState ->
+            currentState.copy(pdf = finalPdf)
         }
     }
 
