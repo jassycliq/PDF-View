@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.jassycliq.pdfview.PdfView
+import com.jassycliq.pdfview.rememberPdfViewState
 import com.jassycliq.pdfviewexample.ui.theme.PDFViewTheme
 import java.io.File
 import java.io.FileOutputStream
@@ -38,7 +39,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PDFViewTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PdfView(file = file)
+                    PdfView(state = rememberPdfViewState(file))
                 }
             }
         }

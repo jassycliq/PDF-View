@@ -1,12 +1,16 @@
 package com.jassycliq.pdfview
 
 import android.graphics.Bitmap
+import android.graphics.Bitmap.CompressFormat.JPEG
 import android.graphics.Bitmap.Config.ARGB_8888
+import android.graphics.Bitmap.Config.RGB_565
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color.WHITE
 import android.graphics.pdf.PdfRenderer
 import android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES.O
 import android.os.ParcelFileDescriptor
 import android.os.ParcelFileDescriptor.MODE_READ_ONLY
 import androidx.lifecycle.ViewModel
@@ -18,20 +22,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.lang.ref.SoftReference
 
 class PdfViewModel(
     private val pdf: File?,
+    private val isLowRam: Boolean = false,
 ) : ViewModel() {
     private lateinit var finalPdf: Bitmap
     private val _uiState = MutableStateFlow(PdfState())
     val uiState: StateFlow<PdfState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             createPDF()
         }
     }
@@ -41,19 +45,22 @@ class PdfViewModel(
         super.onCleared()
     }
 
-    private suspend fun createPDF() = withContext(Dispatchers.IO) {
+    private fun createPDF() {
         pdf?.let {
-            finalPdf = pdf.createImageList()
-                .renderCombinedPDF()
-                .decodeSampledBitmapFromFile()
-                .apply { prepareToDraw() }
+            finalPdf = when (SDK_INT < O || isLowRam) {
+                true -> pdf.createImageList()
+                    .renderCombinedPDFLowMem()
+                    .decodeSampledBitmapFromFile()
+                false -> pdf.createImageList()
+                    .renderCombinedPDF()
+            }.apply { prepareToDraw() }
             _uiState.update { currentState ->
                 currentState.copy(pdf = finalPdf)
             }
         }
     }
 
-    private fun File.createImageList(): MutableSet<SoftReference<Bitmap>> {
+    private fun File.createImageList(): Set<SoftReference<Bitmap>> {
         val input = ParcelFileDescriptor.open(this, MODE_READ_ONLY)
         val imageList = mutableSetOf<SoftReference<Bitmap>>()
 
@@ -70,14 +77,14 @@ class PdfViewModel(
         return imageList
     }
 
-    private fun MutableSet<SoftReference<Bitmap>>.renderCombinedPDF(): File {
-        val width = this.first().get()?.width ?: 0
-        val height = (this.first().get()?.height ?: 0) * this.size
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    private fun Set<SoftReference<Bitmap>>.renderCombinedPDF(): Bitmap {
+        val width = maxOf { it.get()?.width ?: 0 }
+        val height = sumOf { it.get()?.height ?: 0 }
+        val bitmap = Bitmap.createBitmap(width, height, RGB_565)
         val canvas = Canvas(bitmap).apply { drawColor(WHITE) }
         var previousHeight = 0f
 
-        this.forEach { pdfPage ->
+        forEach { pdfPage ->
             canvas.apply {
                 pdfPage.get()?.let {
                     drawBitmap(it, 0f, previousHeight, null)
@@ -88,14 +95,17 @@ class PdfViewModel(
             pdfPage.get()?.recycle()
             pdfPage.clear()
         }
-
-        val file = File.createTempFile("final", ".jpg")
-        bitmap.apply {
-            compress(Bitmap.CompressFormat.JPEG, 100, FileOutputStream(file))
-            recycle()
-        }
-        return file
+        return bitmap
     }
+
+    private fun Set<SoftReference<Bitmap>>.renderCombinedPDFLowMem(): File =
+        File.createTempFile("final", ".jpg").apply {
+            delete()
+            with(renderCombinedPDF()) {
+                compress(JPEG, 100, FileOutputStream(this@apply))
+                recycle()
+            }
+        }
 
     private fun File.decodeSampledBitmapFromFile(): Bitmap {
         // First decode with inJustDecodeBounds=true to check dimensions
@@ -103,6 +113,7 @@ class PdfViewModel(
             inJustDecodeBounds = true
             BitmapFactory.decodeFile(this@decodeSampledBitmapFromFile.path, this)
             // Calculate inSampleSize
+            // TODO: Should probably look into doing some math with screen size
             inSampleSize = 2
             // Decode bitmap with inSampleSize set
             inJustDecodeBounds = false
@@ -111,11 +122,11 @@ class PdfViewModel(
     }
 }
 
-class PdfViewModelFactory(private val pdfFile: File?) : ViewModelProvider.Factory {
+internal class PdfViewModelFactory(private val pdfFile: File?, private val isLowRam: Boolean) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(PdfViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return PdfViewModel(pdfFile) as T
+            return PdfViewModel(pdfFile, isLowRam) as T
         }
         throw IllegalArgumentException("Unknown ViewModel Class")
     }

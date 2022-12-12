@@ -24,6 +24,6 @@ class PdfViewXml @JvmOverloads constructor(
 
     @Composable
     override fun Content() {
-        PdfView(file = pdfFile.value)
+        PdfView(state = rememberPdfViewState(pdf))
     }
 }
