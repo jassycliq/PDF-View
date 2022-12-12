@@ -1,6 +1,5 @@
 package com.jassycliq.pdfview
 
-import android.graphics.Bitmap
 import androidx.annotation.FloatRange
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
@@ -16,10 +15,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import kotlinx.coroutines.coroutineScope
 import java.io.File
-
-data class PdfState(
-    val pdf: Bitmap? = null,
-)
 
 @Composable
 fun rememberPdfViewState(
@@ -114,8 +109,7 @@ class PdfViewState(
         velocityTracker.addPosition(timeMillis = timeMillis, position = position)
 
 
-    internal fun resetTracking() =
-        velocityTracker.resetTracking()
+    internal fun resetTracking() = velocityTracker.resetTracking()
 
     internal fun isHorizontalDragFinished(dragDistance: Offset): Boolean {
         val lowerBounds = _translateX.lowerBound ?: return false

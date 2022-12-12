@@ -31,8 +31,8 @@ class PdfViewModel(
     private val isLowRam: Boolean = false,
 ) : ViewModel() {
     private lateinit var finalPdf: Bitmap
-    private val _uiState = MutableStateFlow(PdfState())
-    val uiState: StateFlow<PdfState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(UiState())
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {

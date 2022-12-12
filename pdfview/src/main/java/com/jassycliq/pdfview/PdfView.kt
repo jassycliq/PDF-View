@@ -40,10 +40,10 @@ fun PdfView(
 ) {
     val isLowMem = (LocalContext.current.getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice
     val vm: PdfViewModel = viewModel(factory = PdfViewModelFactory(state.pdf, isLowMem))
-    val pdfState: PdfState by vm.uiState.collectAsState()
+    val uiState: UiState by vm.uiState.collectAsState()
 
     // TODO: Possibly display some sort of view as an error?
-    pdfState.pdf?.let {
+    uiState.pdf?.let {
         val scope = rememberCoroutineScope()
         BoxWithConstraints(
             modifier = modifier,
