@@ -141,9 +141,9 @@ private suspend fun PointerInputScope.detectDrag(
             do {
                 drag = awaitTouchSlopOrCancellation(down.id, onDrag)
             } while (drag != null && drag.isConsumed.not())
-            drag?.let { inputChange ->
+            drag?.let {
                 onDragStart(drag.position)
-                when (drag(drag.id) { onDrag(inputChange, inputChange.positionChange()) }) {
+                when (drag(drag.id) { onDrag(it, it.positionChange()) }) {
                     true -> onDragEnd()
                     false -> onDragCancel()
                 }
