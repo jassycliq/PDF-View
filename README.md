@@ -3,8 +3,29 @@ WIP: Small library for custom view to render PDFs in an Android application.
 
 <img src="https://github.com/jassycliq/PDF-View/blob/master/example.gif" width=250>
 
-# License
+# Usage
+## Compose
+```kotlin
+val pdfFile = File() // How ever you get your PDF File
+val pdfPath by rememberSaveable { mutableStateOf(pdfFile.path) }
+
+PdfView(filePath = pdfPath, state = rememberPdfViewState())
 ```
+## View
+#### XML
+```xml
+<com.jassycliq.pdfview.PdfViewXml
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+```
+#### Activity
+```kotlin
+val pdfFile = File() // How ever you get your PDF File
+pdfView.filePath = pdfFile
+```
+
+# License
+```text
 MIT License
 
 Copyright (c) 2022 jassycliq
