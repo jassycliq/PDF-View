@@ -7,25 +7,21 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import kotlinx.coroutines.coroutineScope
-import java.io.File
 
 @Composable
 fun rememberPdfViewState(
-    file: File? = null,
     @FloatRange(from = 0.0) minScale: Float = 1f,
     @FloatRange(from = 0.0) maxScale: Float = Float.MAX_VALUE,
 ): PdfViewState = rememberSaveable(
     saver = PdfViewState.Saver
 ) {
     PdfViewState(
-        pdf = file,
         minScale = minScale,
         maxScale = maxScale,
     )
@@ -33,7 +29,6 @@ fun rememberPdfViewState(
 
 @Stable
 class PdfViewState(
-    pdf: File? = null,
     @FloatRange(from = 0.0) val minScale: Float = 1f,
     @FloatRange(from = 0.0) val maxScale: Float = Float.MAX_VALUE,
     @FloatRange(from = 0.0) initialTranslateX: Float = 0f,
@@ -44,14 +39,10 @@ class PdfViewState(
     private val _translateY = Animatable(initialTranslateY)
     private val _translateX = Animatable(initialTranslateX)
     private val _scale = Animatable(initialScale)
-    private val _file = mutableStateOf(pdf)
 
     init {
         require(minScale < maxScale) { "minScale must be < maxScale" }
     }
-
-    val pdf: File?
-        get() = _file.value
 
     @get:FloatRange(from = 0.0)
     val scale: Float

@@ -15,28 +15,24 @@ import android.os.ParcelFileDescriptor
 import android.os.ParcelFileDescriptor.MODE_READ_ONLY
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.lang.ref.SoftReference
 
 internal class PdfViewModel(
-    private val pdf: File?,
     private val isLowRam: Boolean = false,
 ) : ViewModel() {
     private lateinit var finalPdf: Bitmap
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            createPDF()
+    internal fun setPdfFile(filePath: String) {
+        if (filePath.isNotEmpty()) {
+            File(filePath).createPDF()
         }
     }
 
@@ -45,12 +41,12 @@ internal class PdfViewModel(
         super.onCleared()
     }
 
-    private fun createPDF() = pdf?.let {
+    private fun File.createPDF() {
         finalPdf = when (SDK_INT < O || isLowRam) {
-            true -> pdf.createImageList()
+            true -> createImageList()
                 .renderCombinedPDFLowMem()
                 .decodeSampledBitmapFromFile()
-            false -> pdf.createImageList()
+            false -> createImageList()
                 .renderCombinedPDF()
         }.apply { prepareToDraw() }
 
@@ -121,11 +117,11 @@ internal class PdfViewModel(
     }
 }
 
-internal class PdfViewModelFactory(private val pdfFile: File?, private val isLowRam: Boolean) : ViewModelProvider.Factory {
+internal class PdfViewModelFactory(private val isLowRam: Boolean) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(PdfViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return PdfViewModel(pdfFile, isLowRam) as T
+            return PdfViewModel(isLowRam) as T
         }
         throw IllegalArgumentException("Unknown ViewModel Class")
     }

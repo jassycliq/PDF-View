@@ -37,92 +37,92 @@ import kotlinx.coroutines.launch
 fun PdfView(
     state: PdfViewState,
     modifier: Modifier = Modifier,
+    filePath: String = "",
 ) {
     val isLowMem = (LocalContext.current.getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice
-    val vm: PdfViewModel = viewModel(factory = PdfViewModelFactory(state.pdf, isLowMem))
+    val vm: PdfViewModel = viewModel(factory = PdfViewModelFactory(isLowMem))
     val uiState: UiState by vm.uiState.collectAsState()
+    vm.setPdfFile(filePath)
 
     // TODO: Possibly display some sort of view as an error?
-    uiState.pdf?.let {
-        val scope = rememberCoroutineScope()
-        BoxWithConstraints(
-            modifier = modifier,
-        ) {
+    val scope = rememberCoroutineScope()
+    BoxWithConstraints(
+        modifier = modifier,
+    ) {
 
-            var childWidth by remember { mutableStateOf(0) }
-            var childHeight by remember { mutableStateOf(0) }
+        var childWidth by remember { mutableStateOf(0) }
+        var childHeight by remember { mutableStateOf(0) }
 
-            LaunchedEffect(childHeight, childWidth, state.scale) {
-                state.updateBounds(
-                    maxX = (childWidth * state.scale - constraints.maxWidth).coerceAtLeast(0f) / 2f,
-                    maxY = (childHeight * state.scale - constraints.maxHeight).coerceAtLeast(0f) / 2f,
+        LaunchedEffect(childHeight, childWidth, state.scale) {
+            state.updateBounds(
+                maxX = (childWidth * state.scale - constraints.maxWidth).coerceAtLeast(0f) / 2f,
+                maxY = (childHeight * state.scale - constraints.maxHeight).coerceAtLeast(0f) / 2f,
+            )
+        }
+
+        LazyColumn(modifier = Modifier
+            .pointerInput(Unit) {
+                detectDrag(
+                    onDrag = { change, dragAmount ->
+                        if (state.isHorizontalDragFinished(dragAmount).not()) {
+                            if (change.positionChange() != Offset.Zero) change.consume()
+                        }
+                        if (state.zooming) {
+                            scope.launch {
+                                state.drag(dragAmount)
+                                state.addPosition(change.uptimeMillis, change.position)
+                            }
+                        }
+                    },
+                    onDragEnd = { if (state.zooming) scope.launch { state.dragEnd() } },
+                    onDragCancel = { state.resetTracking() },
                 )
             }
-
-            LazyColumn(modifier = Modifier
-                .pointerInput(Unit) {
-                    detectDrag(
-                        onDrag = { change, dragAmount ->
-                            if (state.isHorizontalDragFinished(dragAmount).not()) {
-                                if (change.positionChange() != Offset.Zero) change.consume()
-                            }
-                            if (state.zooming) {
-                                scope.launch {
-                                    state.drag(dragAmount)
-                                    state.addPosition(change.uptimeMillis, change.position)
-                                }
-                            }
-                        },
-                        onDragEnd = { if (state.zooming) scope.launch { state.dragEnd() } },
-                        onDragCancel = { state.resetTracking() },
-                    )
-                }
-                .then(Modifier.pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            scope.launch {
-                                state.animateScaleTo(if (state.scale > 3f) state.minScale else state.scale * 2)
-                            }
-                        }
-                    )
-                })
-                .transformable(
-                    state = rememberTransformableState { zoomChange, _, _ ->
+            .then(Modifier.pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
                         scope.launch {
-                            state.onZoomChange(zoomChange)
+                            state.animateScaleTo(if (state.scale > 3f) state.minScale else state.scale * 2)
                         }
                     }
                 )
-                .layout { measurable, constraints ->
-                    with(measurable.measure(constraints = constraints)) {
-                        childHeight = height
-                        childWidth = width
-                        layout(
-                            width = constraints.maxWidth,
-                            height = constraints.maxHeight
+            })
+            .transformable(
+                state = rememberTransformableState { zoomChange, _, _ ->
+                    scope.launch {
+                        state.onZoomChange(zoomChange)
+                    }
+                }
+            )
+            .layout { measurable, constraints ->
+                with(measurable.measure(constraints = constraints)) {
+                    childHeight = height
+                    childWidth = width
+                    layout(
+                        width = constraints.maxWidth,
+                        height = constraints.maxHeight
+                    ) {
+                        placeRelativeWithLayer(
+                            (constraints.maxWidth - width) / 2,
+                            (constraints.maxHeight - height) / 2
                         ) {
-                            placeRelativeWithLayer(
-                                (constraints.maxWidth - width) / 2,
-                                (constraints.maxHeight - height) / 2
-                            ) {
-                                scaleX = state.scale
-                                scaleY = state.scale
-                                translationX = state.translateX
-                                translationY = state.translateY
-                            }
+                            scaleX = state.scale
+                            scaleY = state.scale
+                            translationX = state.translateX
+                            translationY = state.translateY
                         }
                     }
                 }
-            ) {
-                item {
-                    AsyncImage(
-                        model = it,
-                        contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
-                }
+            }
+        ) {
+            item {
+                AsyncImage(
+                    model = uiState.pdf,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillWidth,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
             }
         }
     }
