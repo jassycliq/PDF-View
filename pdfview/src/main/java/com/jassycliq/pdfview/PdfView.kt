@@ -38,17 +38,21 @@ fun PdfView(
     state: PdfViewState,
     modifier: Modifier = Modifier,
     filePath: String = "",
+    scope: CoroutineScope = rememberCoroutineScope(),
+    uiStateFlow: MutableStateFlow<UiState> = MutableStateFlow(UiState())
 ) {
-    val isLowMem = (LocalContext.current.getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice
-    val vm: PdfViewModel = viewModel(factory = PdfViewModelFactory(isLowMem))
-    val uiState: UiState by vm.uiState.collectAsState()
-    vm.setPdfFile(filePath)
+    val uiState = uiStateFlow.collectAsState()
 
-    // TODO: Possibly display some sort of view as an error?
-    val scope = rememberCoroutineScope()
-    BoxWithConstraints(
-        modifier = modifier,
-    ) {
+    File(filePath).apply {
+        if (exists()) {
+            val isLowRamDevice = (LocalContext.current.getSystemService(ACTIVITY_SERVICE) as ActivityManager).isLowRamDevice
+            uiStateFlow.update {
+                it.copy(pdf = createPdfBitmap(isLowRamDevice).asImageBitmap())
+            }
+        }
+    }
+
+    BoxWithConstraints {
 
         var childWidth by remember { mutableStateOf(0) }
         var childHeight by remember { mutableStateOf(0) }
