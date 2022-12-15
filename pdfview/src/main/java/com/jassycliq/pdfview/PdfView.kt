@@ -2,6 +2,7 @@ package com.jassycliq.pdfview
 
 import android.app.ActivityManager
 import android.content.Context.ACTIVITY_SERVICE
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -10,8 +11,10 @@ import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -22,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -29,9 +33,11 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 @Composable
 fun PdfView(
@@ -64,69 +70,75 @@ fun PdfView(
             )
         }
 
-        LazyColumn(modifier = Modifier
-            .pointerInput(Unit) {
-                detectDrag(
-                    onDrag = { change, dragAmount ->
-                        if (state.isHorizontalDragFinished(dragAmount).not()) {
-                            if (change.positionChange() != Offset.Zero) change.consume()
-                        }
-                        if (state.zooming) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(Unit) {
+                    detectDrag(
+                        onDrag = { change, dragAmount ->
+                            if (state.isHorizontalDragFinished(dragAmount * state.scale).not()) {
+                                if (change.positionChange() != Offset.Zero) change.consume()
+                            }
+                            if (state.zooming) {
+                                scope.launch {
+                                    state.drag(dragAmount)
+                                    state.addPosition(change.uptimeMillis, change.position)
+                                }
+                            }
+                        },
+                        onDragEnd = { if (state.zooming) scope.launch { state.dragEnd() } },
+                        onDragCancel = { state.resetTracking() },
+                    )
+                }
+                .then(Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
                             scope.launch {
-                                state.drag(dragAmount)
-                                state.addPosition(change.uptimeMillis, change.position)
+                                state.animateScaleTo(if (state.scale > 3f) state.minScale else state.scale * 2)
                             }
                         }
-                    },
-                    onDragEnd = { if (state.zooming) scope.launch { state.dragEnd() } },
-                    onDragCancel = { state.resetTracking() },
-                )
-            }
-            .then(Modifier.pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
+                    )
+                })
+                .transformable(
+                    state = rememberTransformableState { zoomChange, _, _ ->
                         scope.launch {
-                            state.animateScaleTo(if (state.scale > 3f) state.minScale else state.scale * 2)
+                            state.onZoomChange(zoomChange)
                         }
                     }
                 )
-            })
-            .transformable(
-                state = rememberTransformableState { zoomChange, _, _ ->
-                    scope.launch {
-                        state.onZoomChange(zoomChange)
-                    }
-                }
-            )
-            .layout { measurable, constraints ->
-                with(measurable.measure(constraints = constraints)) {
-                    childHeight = height
-                    childWidth = width
-                    layout(
-                        width = constraints.maxWidth,
-                        height = constraints.maxHeight
-                    ) {
-                        placeRelativeWithLayer(
-                            (constraints.maxWidth - width) / 2,
-                            (constraints.maxHeight - height) / 2
+                .layout { measurable, constraints ->
+                    with(measurable.measure(constraints = constraints)) {
+                        childHeight = height
+                        childWidth = width
+                        layout(
+                            width = constraints.maxWidth,
+                            height = constraints.maxHeight
                         ) {
-                            scaleX = state.scale
-                            scaleY = state.scale
-                            translationX = state.translateX
-                            translationY = state.translateY
+                            placeRelativeWithLayer(
+                                (constraints.maxWidth - width) / 2,
+                                (constraints.maxHeight - height) / 2
+                            ) {
+                                scaleX = state.scale
+                                scaleY = state.scale
+                                translationX = state.translateX
+                                translationY = state.translateY
+                            }
                         }
                     }
                 }
-            }
+                .verticalScroll(rememberScrollState())
+
         ) {
-            item {
-                AsyncImage(
-                    model = uiState.pdf,
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
+            when (val pdf = uiState.value.pdf) {
+                null -> Unit // TODO: Display some sort of view as an error?
+                else ->
+                    Image(
+                        bitmap = pdf,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = modifier
+                            .fillMaxWidth(),
+                    )
             }
         }
     }
