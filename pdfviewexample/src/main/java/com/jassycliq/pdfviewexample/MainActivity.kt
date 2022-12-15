@@ -26,36 +26,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // TODO: Should do this in VM but too lazy
         lifecycleScope.launch(Dispatchers.IO) {
-            val inputFile = applicationContext.resources.openRawResource(R.raw.demo)
-            inputFile.use { input ->
-                File(cacheDir, "demo.pdf").run {
-                    FileOutputStream(this).use { output ->
-                        val buffer = ByteArray(4 * 1024)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                        }
-                        output.flush()
-                    }
-                    filePath.value = path
-                }
-            }
-            delay(10000)
-            val inputFile2 = applicationContext.resources.openRawResource(R.raw.blank)
-            inputFile2.use { input ->
-                File(cacheDir, "blank.pdf").run {
-                    FileOutputStream(this).use { output ->
-                        val buffer = ByteArray(4 * 1024)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                        }
-                        output.flush()
-                    }
-                    filePath.value = path
-                }
+            while(true) {
+                renderDemoPdf()
+                delay(10000)
+                renderBlankPdf()
+                delay(10000)
             }
         }
 
@@ -69,4 +45,34 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun renderBlankPdf() =
+        applicationContext.resources.openRawResource(R.raw.blank).use { input ->
+            File(cacheDir, "blank.pdf").run {
+                FileOutputStream(this).use { output ->
+                    val buffer = ByteArray(4 * 1024)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        output.write(buffer, 0, read)
+                    }
+                    output.flush()
+                }
+                filePath.value = path
+            }
+        }
+
+    private fun renderDemoPdf() =
+        applicationContext.resources.openRawResource(R.raw.demo).use { input ->
+            File(cacheDir, "demo.pdf").run {
+                FileOutputStream(this).use { output ->
+                    val buffer = ByteArray(4 * 1024)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        output.write(buffer, 0, read)
+                    }
+                    output.flush()
+                }
+                filePath.value = path
+            }
+        }
 }
