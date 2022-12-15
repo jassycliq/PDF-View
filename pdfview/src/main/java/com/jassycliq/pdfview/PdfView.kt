@@ -45,7 +45,21 @@ fun PdfView(
     modifier: Modifier = Modifier,
     filePath: String = "",
     scope: CoroutineScope = rememberCoroutineScope(),
-    uiStateFlow: MutableStateFlow<UiState> = MutableStateFlow(UiState())
+) = InternalPdfView(
+    state = state,
+    modifier = modifier,
+    filePath = filePath,
+    scope = scope,
+    uiStateFlow = MutableStateFlow(UiState()),
+)
+
+@Composable
+internal fun InternalPdfView(
+    state: PdfViewState,
+    modifier: Modifier = Modifier,
+    filePath: String = "",
+    scope: CoroutineScope,
+    uiStateFlow: MutableStateFlow<UiState>,
 ) {
     val uiState = uiStateFlow.collectAsState()
 
@@ -76,7 +90,10 @@ fun PdfView(
                 .pointerInput(Unit) {
                     detectDrag(
                         onDrag = { change, dragAmount ->
-                            if (state.isHorizontalDragFinished(dragAmount * state.scale).not()) {
+                            if (state
+                                    .isHorizontalDragFinished(dragAmount * state.scale)
+                                    .not()
+                            ) {
                                 if (change.positionChange() != Offset.Zero) change.consume()
                             }
                             if (state.zooming) {
