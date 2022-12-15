@@ -13,17 +13,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun rememberPdfViewState(
-    @FloatRange(from = 0.0) minScale: Float = 1f,
-    @FloatRange(from = 0.0) maxScale: Float = Float.MAX_VALUE,
+    scaleRange: ClosedRange<Float> = 1f..Float.MAX_VALUE,
 ): PdfViewState = rememberSaveable(
     saver = PdfViewState.Saver
 ) {
     PdfViewState(
-        minScale = minScale,
-        maxScale = maxScale,
+        minScale = scaleRange.start,
+        maxScale = scaleRange.endInclusive,
     )
 }
 
@@ -59,30 +59,27 @@ class PdfViewState(
     internal val zooming: Boolean
         get() = scale > minScale
 
-    private suspend fun snapScaleTo(scale: Float) = coroutineScope {
+    private suspend fun snapScaleTo(scale: Float) =
         _scale.snapTo(scale.coerceIn(minimumValue = minScale, maximumValue = maxScale))
-    }
 
     suspend fun animateScaleTo(
         scale: Float,
         animationSpec: AnimationSpec<Float> = spring(),
         initialVelocity: Float = 0f,
-    ) = coroutineScope {
-        _scale.animateTo(
-            targetValue = scale.coerceIn(minimumValue = minScale, maximumValue = maxScale),
-            animationSpec = animationSpec,
-            initialVelocity = initialVelocity,
-        )
-    }
+    ) = _scale.animateTo(
+        targetValue = scale.coerceIn(minimumValue = minScale, maximumValue = maxScale),
+        animationSpec = animationSpec,
+        initialVelocity = initialVelocity,
+    )
 
     private suspend fun fling(velocity: Offset) = coroutineScope {
-        _translateX.animateDecay(velocity.x / 2f, exponentialDecay())
-        _translateY.animateDecay(velocity.y / 2f, exponentialDecay())
+        launch { _translateX.animateDecay(velocity.x, exponentialDecay()) }
+        launch { _translateY.animateDecay(velocity.y, exponentialDecay()) }
     }
 
     internal suspend fun drag(dragDistance: Offset) = coroutineScope {
-        _translateX.snapTo((_translateX.value + dragDistance.x))
-        _translateY.snapTo((_translateY.value + dragDistance.y))
+        launch { _translateX.snapTo((_translateX.value + dragDistance.x)) }
+        launch { _translateY.snapTo((_translateY.value + dragDistance.y)) }
     }
 
     internal suspend fun dragEnd(): Unit = with(velocityTracker.calculateVelocity()) {
