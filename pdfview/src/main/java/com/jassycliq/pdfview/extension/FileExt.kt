@@ -1,32 +1,40 @@
-package com.jassycliq.pdfview
+package com.jassycliq.pdfview.extension
 
 import android.graphics.Bitmap
+import android.graphics.Bitmap.Config.ARGB_8888
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfRenderer
-import android.os.Build
+import android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES.O
 import android.os.ParcelFileDescriptor
+import android.os.ParcelFileDescriptor.MODE_READ_ONLY
 import java.io.File
 
 internal fun File.createPdfBitmap(isLowRamDevice: Boolean = false): Bitmap =
-    when (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isLowRamDevice) {
+    when (SDK_INT < O || isLowRamDevice) {
         true ->
             createImageList()
-                .combineBitmapsVerticallyLowMem()
+                .combineBitmapsVertically()
+                .compressToFile()
                 .decodeSampledBitmapFromFile()
         false ->
             createImageList()
                 .combineBitmapsVertically()
     }
 
+/**
+ * Creates a list of images from a PDF file
+ */
 internal fun File.createImageList(): List<Bitmap> {
-    val input = ParcelFileDescriptor.open(this, ParcelFileDescriptor.MODE_READ_ONLY)
+    val input = ParcelFileDescriptor.open(this, MODE_READ_ONLY)
 
     return mutableListOf<Bitmap>().apply {
         PdfRenderer(input).use { pdf ->
             for (i in 0 until pdf.pageCount) {
                 pdf.openPage(i).use { page ->
-                    val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    val bitmap = Bitmap.createBitmap(page.width * 2, page.height * 2, ARGB_8888)
+                    page.render(bitmap, null, null, RENDER_MODE_FOR_DISPLAY)
                     add(bitmap)
                 }
             }

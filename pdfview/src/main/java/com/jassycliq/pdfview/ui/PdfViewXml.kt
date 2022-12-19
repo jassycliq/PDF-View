@@ -1,4 +1,4 @@
-package com.jassycliq.pdfview
+package com.jassycliq.pdfview.ui
 
 import android.content.Context
 import android.util.AttributeSet
@@ -25,6 +25,6 @@ class PdfViewXml @JvmOverloads constructor(
     @Composable
     override fun Content() {
         val filePath by rememberSaveable { pdfPath }
-        PdfView(filePath = filePath, state = rememberPdfViewState())
+        PdfView(filePath = filePath)
     }
 }

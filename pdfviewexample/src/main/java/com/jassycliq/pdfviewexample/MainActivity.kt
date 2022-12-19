@@ -11,8 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
-import com.jassycliq.pdfview.PdfView
-import com.jassycliq.pdfview.rememberPdfViewState
+import com.jassycliq.pdfview.ui.PdfView
 import com.jassycliq.pdfviewexample.ui.theme.PDFViewTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -40,7 +39,7 @@ class MainActivity : ComponentActivity() {
                 val pdfPath by rememberSaveable { filePath }
 
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PdfView(filePath = pdfPath, state = rememberPdfViewState())
+                    PdfView(filePath = pdfPath)
                 }
             }
         }

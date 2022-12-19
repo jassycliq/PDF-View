@@ -16,19 +16,19 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
-fun rememberPdfViewState(
+fun rememberZoomState(
     scaleRange: ClosedRange<Float> = 1f..Float.MAX_VALUE,
-): PdfViewState = rememberSaveable(
-    saver = PdfViewState.Saver
+): ZoomState = rememberSaveable(
+    saver = ZoomState.Saver
 ) {
-    PdfViewState(
+    ZoomState(
         minScale = scaleRange.start,
         maxScale = scaleRange.endInclusive,
     )
 }
 
 @Stable
-class PdfViewState(
+class ZoomState(
     @FloatRange(from = 0.0) val minScale: Float = 1f,
     @FloatRange(from = 0.0) val maxScale: Float = Float.MAX_VALUE,
     @FloatRange(from = 0.0) initialTranslateX: Float = 0f,
@@ -45,15 +45,15 @@ class PdfViewState(
     }
 
     @get:FloatRange(from = 0.0)
-    val scale: Float
+    internal val scale: Float
         get() = _scale.value
 
     @get:FloatRange(from = 0.0)
-    val translateY: Float
+    internal val translateY: Float
         get() = _translateY.value
 
     @get:FloatRange(from = 0.0)
-    val translateX: Float
+    internal val translateX: Float
         get() = _translateX.value
 
     internal val zooming: Boolean
@@ -62,7 +62,7 @@ class PdfViewState(
     private suspend fun snapScaleTo(scale: Float) =
         _scale.snapTo(scale.coerceIn(minimumValue = minScale, maximumValue = maxScale))
 
-    suspend fun animateScaleTo(
+    internal suspend fun animateScaleTo(
         scale: Float,
         animationSpec: AnimationSpec<Float> = spring(),
         initialVelocity: Float = 0f,
@@ -86,7 +86,7 @@ class PdfViewState(
         fling(Offset(x, y))
     }
 
-    internal suspend fun updateBounds(maxX: Float, maxY: Float) = coroutineScope {
+    internal fun updateBounds(maxX: Float, maxY: Float) {
         _translateY.updateBounds(-maxY, maxY)
         _translateX.updateBounds(-maxX, maxX)
     }
@@ -96,27 +96,9 @@ class PdfViewState(
     internal fun addPosition(timeMillis: Long, position: Offset) =
         velocityTracker.addPosition(timeMillis = timeMillis, position = position)
 
-
     internal fun resetTracking() = velocityTracker.resetTracking()
 
-    internal fun isHorizontalDragFinished(dragDistance: Offset): Boolean {
-        val lowerBounds = _translateX.lowerBound ?: return false
-        val upperBounds = _translateX.upperBound ?: return false
-        if (lowerBounds == 0f && upperBounds == 0f) return true
-
-        val newPosition = _translateX.value + dragDistance.x
-
-        if (newPosition <= lowerBounds) {
-            return true
-        }
-
-        if (newPosition >= upperBounds) {
-            return true
-        }
-        return false
-    }
-
-    override fun toString(): String = "PdfViewState(" +
+    override fun toString(): String = "ZoomState(" +
             "minScale=$minScale, " +
             "maxScale=$maxScale, " +
             "translateY=$translateY" +
@@ -125,7 +107,7 @@ class PdfViewState(
             ")"
 
     companion object {
-        val Saver: Saver<PdfViewState, *> = listSaver(
+        val Saver: Saver<ZoomState, *> = listSaver(
             save = {
                 listOf(
                     it.translateX,
@@ -136,7 +118,7 @@ class PdfViewState(
                 )
             },
             restore = {
-                PdfViewState(
+                ZoomState(
                     initialTranslateX = it[0],
                     initialTranslateY = it[1],
                     initialScale = it[2],
